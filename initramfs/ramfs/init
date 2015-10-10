@@ -1,0 +1,330 @@
+#!/bin/sh
+
+# ------------------------------
+# Standard Ubuntu init procedure
+# ------------------------------
+
+[ -d /dev ] || mkdir -m 0755 /dev
+[ -d /root ] || mkdir -m 0700 /root
+[ -d /sys ] || mkdir /sys
+[ -d /proc ] || mkdir /proc
+[ -d /tmp ] || mkdir /tmp
+mkdir -p /var/lock
+mount -t sysfs -o nodev,noexec,nosuid sysfs /sys
+mount -t proc -o nodev,noexec,nosuid proc /proc
+# Some things don't work properly without /etc/mtab.
+ln -sf /proc/mounts /etc/mtab
+
+# hide kernel log messages on console
+#echo '1 4 1 7' > /proc/sys/kernel/printk
+echo "1 1 1 1" > /proc/sys/kernel/printk
+
+# Note that this only becomes /dev on the real filesystem if udev's scripts
+# are used; which they will be, but it's worth pointing out
+if ! mount -t devtmpfs -o mode=0755 udev /dev; then
+    #echo "W: devtmpfs not available, falling back to tmpfs for /dev"
+    mount -t tmpfs -o mode=0755 udev /dev
+    [ -e /dev/console ] || mknod -m 0600 /dev/console c 5 1
+    [ -e /dev/null ] || mknod /dev/null c 1 3
+fi
+
+mkdir /dev/pts
+mount -t devpts -o noexec,nosuid,gid=5,mode=0620 devpts /dev/pts || true
+
+# *** Mount /run as tmpfs so that we have as much RAM disk space as possible
+mount -t tmpfs -o "noexec,nosuid,size=85%,mode=0755" tmpfs /run
+
+mkdir /run/initramfs
+# compatibility symlink for the pre-oneiric locations
+ln -s /run/initramfs /dev/.initramfs
+
+# Export the dpkg architecture
+export DPKG_ARCH=
+. /conf/arch.conf
+
+# Set modprobe env
+export MODPROBE_OPTIONS="-qb"
+
+# Export relevant variables
+export ROOT=
+export ROOTDELAY=
+export ROOTFLAGS=
+export ROOTFSTYPE=
+export IP=
+export BOOT=
+export BOOTIF=
+export UBIMTD=
+export break=
+export init=/sbin/init
+export quiet=n
+export readonly=y
+export rootmnt=/root
+export debug=
+export panic=
+export blacklist=
+export resume=
+export resume_offset=
+export recovery=
+
+export INST_DELAY=60
+export SYSTEM_SIZE=1024
+export SYSTEM_MINSIZE=768
+export DATA_SIZE=2048
+export DATA_MINSIZE=1024
+export CACHE_SIZE=256
+export CACHE_MINSIZE=128
+export USERDATA_SIZE=1024
+export USERDATA_MINSIZE=1024
+export LINUX_SIZE=2048
+export LINUX_MINSIZE=2048
+export OELEC_SIZE=0
+export OELEC_MINSIZE=0
+export LINUX_FSTYPE="ext4"
+
+# mdadm needs hostname to be set. This has to be done before the udev rules are called!
+if [ -f "/etc/hostname" ]; then
+        /bin/hostname -b -F /etc/hostname 2>&1 1>/dev/null
+fi
+
+# Bring in the main config
+. /conf/initramfs.conf
+for conf in conf/conf.d/*; do
+    [ -f ${conf} ] && . ${conf}
+done
+. /scripts/functions
+
+# Parse command line options
+for x in $(cat /proc/cmdline); do
+    case $x in
+    instdelay=*)
+        INST_DELAY=${x#instdelay=}
+        ;;
+    linuxfstype=*)
+        LINUX_FSTYPE="${x#linuxfstype=}"
+        ;;
+    quiet)
+        quiet=y
+        ;;
+    ro)
+        readonly=y
+        ;;
+    rw)
+        readonly=n
+        ;;
+    break=*)
+        break=${x#break=}
+        ;;
+    break)
+        break=premount
+        ;;
+    esac
+done
+
+if [ -n "${noresume}" ]; then
+    export noresume
+    unset resume
+else
+    resume=${RESUME:-}
+fi
+
+maybe_break top
+
+# export BOOT variable value for compcache,
+# so we know if we run from casper
+export BOOT
+
+# Don't do log messages here to avoid confusing graphical boots
+run_scripts /scripts/init-top
+
+maybe_break modules
+load_modules
+[ -n "${netconsole}" ] && modprobe netconsole netconsole="${netconsole}"
+maybe_break premount
+run_scripts /scripts/init-premount
+
+# ==========================================================================
+# === Start installation process ===========================================
+# ==========================================================================
+
+echo "1 1 1 1" > /proc/sys/kernel/printk
+chown 0:0 /bin/*
+
+mkdir /mnt
+mkdir /run/inst
+
+clear
+printf "\n"
+printf "\n"
+maybe_break test
+
+# ** wait for sd/emmc card
+while [ ! -b /dev/mmcblk0 ] && [ ! -b /dev/mmcblk1 ]
+do
+  printf "    Waiting for sd/mmc card...\r"
+  sleep 1
+done
+sleep 1
+
+export CARD1=""
+export CARD2=""
+export CARD1_EMMC=""
+export CARD2_EMMC=""
+export DEST_CARD=""
+export DEST_EMMC=""
+export SOURCE_CARD=""
+export INST_ANDROID=""
+export INST_OELEC=""
+export INST_LINUX=""
+
+#-----------------------------------------------------
+# Check card type
+#----------------
+if [ -b /dev/mmcblk0 ]; then
+    CARD1="/dev/mmcblk0"
+    if [ -b /dev/mmcblk0boot0 ]; then
+		CARD1_EMMC="EMMC"
+	else
+		CARD1_EMMC="SD"
+	fi
+fi
+if [ -b /dev/mmcblk1 ]; then
+    CARD2="/dev/mmcblk1"
+    if [ -b /dev/mmcblk1boot0 ]; then
+		CARD2_EMMC="EMMC"
+	else
+		CARD2_EMMC="SD"
+	fi
+fi
+#-----------------------------------------------------
+
+
+#-----------------------------------------------------
+# Check where the installation files are located
+check_source() {
+    if [ -b /dev/sda1 ]; then
+		/bin/mountx /dev/sda1 /mnt > /dev/null 2>&1
+		if [ $? -ne 0 ]; then
+			if [ "${CARD1_EMMC}" = "SD" ]; then
+				SOURCE_CARD=${CARD1}
+			elif [ "${CARD2_EMMC}" = "SD" ]; then
+				SOURCE_CARD=${CARD2}
+			else
+				return 1
+			fi
+			mount -t vfat ${SOURCE_CARD}p1 /mnt > /dev/null 2>&1
+			if [ $? -ne 0 ]; then
+				return 1
+			fi
+		else
+			SOURCE_CARD="/dev/sda1"
+		fi
+	else
+		if [ "${CARD1_EMMC}" = "SD" ]; then
+			SOURCE_CARD=${CARD1}
+		elif [ "${CARD2_EMMC}" = "SD" ]; then
+			SOURCE_CARD=${CARD2}
+		else
+			return 1
+		fi
+		mount -t vfat ${SOURCE_CARD}p1 /mnt > /dev/null 2>&1
+		if [ $? -ne 0 ]; then
+			return 1
+		fi
+    fi
+    sleep 1
+    # Source drive found and 1st partition mounted on /mnt
+    
+    # Set default dest card to sdcard if exists
+    if [ ! "${CARD2}" = "" ]; then
+        DEST_CARD=${CARD2}
+        DEST_EMMC=${CARD2_EMMC}
+    elif [ ! "${CARD1}" = "" ]; then
+        DEST_CARD=${CARD1}
+        DEST_EMMC=${CARD1_EMMC}
+    fi
+
+    # Check installation files on USB drive
+    if [ -f /mnt/update.zip ]; then
+        INST_ANDROID="yes"
+    elif [ -d /mnt/update ] && [ -f /mnt/update/system.img ]; then
+        INST_ANDROID="yes"
+    elif [ -d /mnt/backup/android/system ]; then
+        INST_ANDROID="yes"
+    else
+        SYSTEM_MINSIZE=4
+        DATA_MINSIZE=4
+        SYSTEM_SIZE=4
+        DATA_SIZE=4
+        CACHE_SIZE=4
+        CACHE_MINSIZE=4
+        USERDATA_MINSIZE=128
+        USERDATA_SIZE=128
+    fi
+
+    if [ -f /mnt/linux.img ]; then
+        INST_LINUX="yes"
+    elif [ -d /mnt/backup/linux ] && [ -d /mnt/backup/boot-linux ]; then
+        INST_LINUX="yes"
+    else
+        LINUX_MINSIZE=8
+        LINUX_SIZE=8
+    fi
+        
+    #if [ -f /mnt/oelec.tar ]; then
+    #    INST_OELEC="yes"
+    #else
+    #    OELEC_MINSIZE=4
+    #    OELEC_SIZE=4
+    #fi
+        
+	if [ "${INST_ANDROID}" != "yes" ] && [ "${INST_LINUX}" != "yes" ] && [ "${SOURCE_CARD}" != "/dev/sda1" ]; then
+		return 1
+	fi
+	
+    return 0
+}
+#-----------------------------------------------------
+
+#-----------------------------------------------------
+stop_exec() {
+	printf "    ."
+    while true
+    do
+		sleep 10
+		printf "."
+    done
+}
+#-----------------------------------------------------
+
+sleep 1
+clear
+printf "\n"
+printf "\n"
+printf "\033[36m\n"
+printf "    ======================================\n"
+printf "    = Odroid XU3/XU4 Universal installer =\n"
+printf "    ======================================\n"
+printf "\033[37m\n"
+
+printf "    Searching for installation drive ... "
+check_source
+if [ $? -eq 0 ]; then
+    printf "OK\n\n"
+else
+    printf "\033[33m\033[1mNOT FOUND\033[22m\033[37m\n"
+    printf "    \033[33m\033[1mInstallation aborted.\033[22m\033[37m\n\n"
+    umount /mnt > /dev/null 2>&1
+    stop_exec
+fi
+
+sleep 1
+if [ -f /install.script ]; then
+    . /install.script
+else
+    echo ""
+    echo "    INSTALLATION SCRIPT \"install.script\" NOT FOUND!"
+fi
+
+stop_exec
+
+reboot

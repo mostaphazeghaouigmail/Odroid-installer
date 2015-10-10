@@ -1,0 +1,83 @@
+kernel/fs/nfs_common/nfs_acl.ko: kernel/net/sunrpc/sunrpc.ko
+kernel/fs/nls/nls_cp437.ko:
+kernel/fs/reiserfs/reiserfs.ko:
+kernel/fs/fat/fat.ko:
+kernel/fs/fat/vfat.ko: kernel/fs/fat/fat.ko
+kernel/fs/isofs/isofs.ko:
+kernel/fs/nfs/nfs.ko: kernel/fs/lockd/lockd.ko kernel/net/sunrpc/sunrpc.ko kernel/net/dns_resolver/dns_resolver.ko
+kernel/fs/nfs/nfsv3.ko: kernel/fs/nfs_common/nfs_acl.ko kernel/fs/nfs/nfs.ko kernel/fs/lockd/lockd.ko kernel/net/sunrpc/sunrpc.ko kernel/net/dns_resolver/dns_resolver.ko
+kernel/fs/nfs/nfsv4.ko: kernel/fs/nfs/nfs.ko kernel/fs/lockd/lockd.ko kernel/net/sunrpc/sunrpc.ko kernel/net/dns_resolver/dns_resolver.ko
+kernel/fs/lockd/lockd.ko: kernel/net/sunrpc/sunrpc.ko
+kernel/fs/fuse/fuse.ko:
+kernel/fs/udf/udf.ko: kernel/lib/crc-itu-t.ko
+kernel/fs/jfs/jfs.ko:
+kernel/fs/btrfs/btrfs.ko: kernel/crypto/xor.ko kernel/lib/raid6/raid6_pq.ko
+kernel/crypto/xor.ko:
+kernel/drivers/block/brd.ko:
+kernel/drivers/block/nbd.ko:
+kernel/drivers/scsi/scsi_transport_iscsi.ko:
+kernel/drivers/scsi/libiscsi.ko: kernel/drivers/scsi/scsi_transport_iscsi.ko
+kernel/drivers/scsi/libiscsi_tcp.ko: kernel/drivers/scsi/libiscsi.ko kernel/drivers/scsi/scsi_transport_iscsi.ko
+kernel/drivers/scsi/iscsi_tcp.ko: kernel/drivers/scsi/libiscsi_tcp.ko kernel/drivers/scsi/libiscsi.ko kernel/drivers/scsi/scsi_transport_iscsi.ko
+kernel/drivers/scsi/iscsi_boot_sysfs.ko:
+kernel/drivers/scsi/sr_mod.ko: kernel/drivers/cdrom/cdrom.ko
+kernel/drivers/net/dummy.ko:
+kernel/drivers/net/macvlan.ko:
+kernel/drivers/net/macvtap.ko: kernel/drivers/net/macvlan.ko
+kernel/drivers/net/netconsole.ko:
+kernel/drivers/net/team/team.ko:
+kernel/drivers/net/team/team_mode_broadcast.ko: kernel/drivers/net/team/team.ko
+kernel/drivers/net/team/team_mode_roundrobin.ko: kernel/drivers/net/team/team.ko
+kernel/drivers/net/team/team_mode_random.ko: kernel/drivers/net/team/team.ko
+kernel/drivers/net/team/team_mode_activebackup.ko: kernel/drivers/net/team/team.ko
+kernel/drivers/net/team/team_mode_loadbalance.ko: kernel/drivers/net/team/team.ko
+kernel/drivers/net/veth.ko:
+kernel/drivers/net/ppp/ppp_generic.ko: kernel/drivers/net/slip/slhc.ko
+kernel/drivers/net/ppp/ppp_async.ko: kernel/drivers/net/ppp/ppp_generic.ko kernel/drivers/net/slip/slhc.ko
+kernel/drivers/net/ppp/bsd_comp.ko: kernel/drivers/net/ppp/ppp_generic.ko kernel/drivers/net/slip/slhc.ko
+kernel/drivers/net/ppp/ppp_deflate.ko: kernel/drivers/net/ppp/ppp_generic.ko kernel/drivers/net/slip/slhc.ko
+kernel/drivers/net/ppp/ppp_mppe.ko: kernel/drivers/net/ppp/ppp_generic.ko kernel/drivers/net/slip/slhc.ko
+kernel/drivers/net/ppp/ppp_synctty.ko: kernel/drivers/net/ppp/ppp_generic.ko kernel/drivers/net/slip/slhc.ko
+kernel/drivers/net/ppp/pppox.ko: kernel/drivers/net/ppp/ppp_generic.ko kernel/drivers/net/slip/slhc.ko
+kernel/drivers/net/ppp/pppoe.ko: kernel/drivers/net/ppp/pppox.ko kernel/drivers/net/ppp/ppp_generic.ko kernel/drivers/net/slip/slhc.ko
+kernel/drivers/net/ppp/pptp.ko: kernel/net/ipv4/gre.ko kernel/drivers/net/ppp/pppox.ko kernel/drivers/net/ppp/ppp_generic.ko kernel/drivers/net/slip/slhc.ko
+kernel/drivers/net/ppp/pppolac.ko: kernel/drivers/net/ppp/pppox.ko kernel/drivers/net/ppp/ppp_generic.ko kernel/drivers/net/slip/slhc.ko
+kernel/drivers/net/ppp/pppopns.ko: kernel/drivers/net/ppp/pppox.ko kernel/drivers/net/ppp/ppp_generic.ko kernel/drivers/net/slip/slhc.ko
+kernel/drivers/net/slip/slhc.ko:
+kernel/drivers/cdrom/cdrom.ko:
+kernel/drivers/usb/storage/ums-alauda.ko:
+kernel/drivers/usb/storage/ums-cypress.ko:
+kernel/drivers/usb/storage/ums-datafab.ko:
+kernel/drivers/usb/storage/ums-eneub6250.ko:
+kernel/drivers/usb/storage/ums-freecom.ko:
+kernel/drivers/usb/storage/ums-isd200.ko:
+kernel/drivers/usb/storage/ums-jumpshot.ko:
+kernel/drivers/usb/storage/ums-karma.ko:
+kernel/drivers/usb/storage/ums-onetouch.ko:
+kernel/drivers/usb/storage/ums-realtek.ko:
+kernel/drivers/usb/storage/ums-sddr09.ko:
+kernel/drivers/usb/storage/ums-sddr55.ko:
+kernel/drivers/usb/storage/ums-usbat.ko:
+kernel/drivers/hid/hid-a4tech.ko:
+kernel/drivers/hid/hid-apple.ko:
+kernel/drivers/hid/hid-belkin.ko:
+kernel/drivers/hid/hid-cherry.ko:
+kernel/drivers/hid/hid-chicony.ko:
+kernel/drivers/hid/hid-cypress.ko:
+kernel/drivers/hid/hid-ezkey.ko:
+kernel/drivers/hid/hid-gyration.ko:
+kernel/drivers/hid/hid-microsoft.ko:
+kernel/drivers/hid/hid-monterey.ko:
+kernel/drivers/hid/hid-pl.ko:
+kernel/drivers/hid/hid-petalynx.ko:
+kernel/drivers/hid/hid-samsung.ko:
+kernel/drivers/hid/hid-sony.ko:
+kernel/drivers/hid/hid-sunplus.ko:
+kernel/drivers/hid/hid-tmff.ko:
+kernel/drivers/hid/hid-zpff.ko:
+kernel/drivers/block/aoe/aoe.ko:
+kernel/net/ipv4/gre.ko:
+kernel/net/sunrpc/sunrpc.ko:
+kernel/net/dns_resolver/dns_resolver.ko:
+kernel/lib/crc-itu-t.ko:
+kernel/lib/raid6/raid6_pq.ko:
