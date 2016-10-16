@@ -802,9 +802,43 @@ unpack_android() {
 		return 1
     fi
     if [ ! -f ${andro_source}/system.img ] || [ ! -f ${andro_source}/userdata.img ] || [ ! -f ${andro_source}/cache.img ]; then
-		echo "    One of image files missing."
-		sleep 2
-		return 1
+		if [ ! -f ${andro_source}/userdata.img ]; then
+			if [ -f ${andro_source}/userdata_8.img ]; then
+				new_usedataimg="userdata_8.img"
+				mv ${andro_source}/userdata_8.img ${andro_source}/userdata.img
+			else
+				if [ -f ${andro_source}/userdata_16.img ]; then
+					new_usedataimg="userdata_16.img"
+					mv ${andro_source}/userdata_16.img ${andro_source}/userdata.img
+				else
+					if [ -f ${andro_source}/userdata_32.img ]; then
+						new_usedataimg="userdata_32.img"
+						mv ${andro_source}/userdata_32.img ${andro_source}/userdata.img
+					else
+						if [ -f ${andro_source}/userdata_64.img ]; then
+							new_usedataimg="userdata_64.img"
+							mv ${andro_source}/userdata_64.img ${andro_source}/userdata.img
+						fi
+					fi
+				fi
+			fi
+			if [ ! -f ${andro_source}/userdata.img ]; then
+				echo "    userdata.img missing."
+				sleep 2
+				return 1
+			fi
+			echo "    using $new_usedataimg as userdata.img"
+			sleep 4
+		else
+			if [ ! -f ${andro_source}/system.img ]; then
+				echo "    system.img missing."
+			fi
+			if [ ! -f ${andro_source}/cache.img ]; then
+				echo "    cache.img missing."
+			fi
+			sleep 2
+			return 1
+		fi
     fi
     
 	_img_size=$(ls -l ${andro_source}/system.img | awk '{print $3}')
@@ -1071,12 +1105,18 @@ prepare_android_multi() {
     # Add init.d script to restore boot prompt on next boot
     mkdir /mnt2/etc > /dev/null 2>&1
     mkdir /mnt2/etc/init.d > /dev/null 2>&1
-    echo "#!/system/bin/sh" > /mnt2/etc/init.d/setboot
-    echo "while [ ! -f /storage/sdcard0/boot.ini.sel ]; do" >> /mnt2/etc/init.d/setboot
-    echo "  /system/bin/sleep 1" >> /mnt2/etc/init.d/setboot
-    echo "done" >> /mnt2/etc/init.d/setboot
-    echo "  /system/bin/cp /storage/sdcard0/boot.ini.sel /storage/sdcard0/boot.ini" >> /mnt2/etc/init.d/setboot
-    chmod 0755 /mnt2/etc/init.d/setboot
+    #echo "#!/system/bin/sh" > /mnt2/etc/init.d/setboot
+    #echo "while [ ! -f /storage/sdcard0/boot.ini.sel ]; do" >> /mnt2/etc/init.d/setboot
+    #echo "  /system/bin/sleep 1" >> /mnt2/etc/init.d/setboot
+    #echo "done" >> /mnt2/etc/init.d/setboot
+    #echo "  /system/bin/cp /storage/sdcard0/boot.ini.sel /storage/sdcard0/boot.ini" >> /mnt2/etc/init.d/setboot
+
+    echo "/system/bin/mkdir /storage/boot" >> /mnt2/etc/init.d/setboot
+	echo "/system/bin/mount /dev/block/mmcblk0p1 /storage/boot" >> /mnt2/etc/init.d/setboot
+	echo "/system/bin/cp /storage/boot/boot.ini.sel /storage/boot/boot.ini" >> /mnt2/etc/init.d/setboot
+	echo "/system/bin/umount /storage/boot" >> /mnt2/etc/init.d/setboot
+	
+	chmod 0755 /mnt2/etc/init.d/setboot
 
     if [ ! -f /mnt2/init.cm.rc ]; then
 		# Hardkernel's android, install init.d support
@@ -1349,11 +1389,22 @@ prepare_linux_boot() {
 				_rcl_ok=`cat /mnt2/etc/rc.local | grep "cp /media/boot/boot.ini.sel"`
 				if [ "${_rcl_ok}" = "" ] ; then
 					cat /mnt2/etc/rc.local | sed s/"^exit 0"/"cp \/media\/boot\/boot.ini.sel \/media\/boot\/boot.ini"/g > _rcloc_
+					if [ -f /mnt2/.firstboot ]; then
+						echo "if [ -f /.firstboot ]; then /aafirstboot start ; fi" >> _rcloc_
+						echo "  rm -f /.firstboot" >> _rcloc_
+						echo "  [ ! -f /etc/ssh/ssh_host_rsa_key ] && dpkg-reconfigure openssh-server" >> _rcloc_
+						echo "fi" >> _rcloc_
+					fi
 					echo "exit 0" >> _rcloc_
 					cp _rcloc_ /mnt2/etc/rc.local
 					rm _rcloc_
 				fi
-				chmod 0755 /mnt2/etc/rc.local
+			else
+				echo "cp /media/boot/boot.ini.sel /media/boot/boot.ini" >> /mnt2/etc/rc.local
+			fi
+			chmod 0755 /mnt2/etc/rc.local
+			if [ -f /mnt2/aafirstboot ]; then
+				rm -f /mnt2/aafirstboot
 			fi
 		fi
     else

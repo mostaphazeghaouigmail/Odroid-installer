@@ -1,0 +1,340 @@
+#!/bin/sh
+
+[ -d /dev ] || mkdir -m 0755 /dev
+[ -d /root ] || mkdir -m 0700 /root
+[ -d /sys ] || mkdir /sys
+[ -d /proc ] || mkdir /proc
+[ -d /tmp ] || mkdir /tmp
+mkdir -p /var/lock
+mount -t sysfs -o nodev,noexec,nosuid sysfs /sys
+mount -t proc -o nodev,noexec,nosuid proc /proc
+# Some things don't work properly without /etc/mtab.
+ln -sf /proc/mounts /etc/mtab
+
+# hide kernel log messages on console
+#echo '1 4 1 7' > /proc/sys/kernel/printk
+echo "1 1 1 1" > /proc/sys/kernel/printk
+
+# Note that this only becomes /dev on the real filesystem if udev's scripts
+# are used; which they will be, but it's worth pointing out
+if ! mount -t devtmpfs -o mode=0755 udev /dev; then
+	#echo "W: devtmpfs not available, falling back to tmpfs for /dev"
+	mount -t tmpfs -o mode=0755 udev /dev
+	[ -e /dev/console ] || mknod -m 0600 /dev/console c 5 1
+	[ -e /dev/null ] || mknod /dev/null c 1 3
+fi
+mkdir /dev/pts
+mount -t devpts -o noexec,nosuid,gid=5,mode=0620 devpts /dev/pts || true
+mount -t tmpfs -o "noexec,nosuid,size=10%,mode=0755" tmpfs /run
+mkdir /run/initramfs
+# compatibility symlink for the pre-oneiric locations
+ln -s /run/initramfs /dev/.initramfs
+
+# Export the dpkg architecture
+export DPKG_ARCH=
+. /conf/arch.conf
+
+# Set modprobe env
+export MODPROBE_OPTIONS="-qb"
+
+# Export relevant variables
+export ROOT=
+export ROOTDELAY=
+export ROOTFLAGS=
+export ROOTFSTYPE=
+export IP=
+export BOOT=
+export BOOTIF=
+export UBIMTD=
+export break=
+export init=/sbin/init
+export quiet=n
+export readonly=y
+export rootmnt=/root
+export debug=
+export panic=
+export blacklist=
+export resume=
+export resume_offset=
+export recovery=
+
+# mdadm needs hostname to be set. This has to be done before the udev rules are called!
+if [ -f "/etc/hostname" ]; then
+        /bin/hostname -b -F /etc/hostname 2>&1 1>/dev/null
+fi
+
+# Bring in the main config
+. /conf/initramfs.conf
+for conf in conf/conf.d/*; do
+	[ -f ${conf} ] && . ${conf}
+done
+. /scripts/functions
+
+BOOTDELAY=60
+DEFAULTBOOT="linux"
+BOOTDEV="sduserdata"
+
+# Parse command line options
+for x in $(cat /proc/cmdline); do
+	case $x in
+	boot_delay=*)
+		BOOTDELAY="${x#boot_delay=}"
+		case ${BOOTDELAY} in
+		*[![:digit:].]*)
+			BOOTDELAY=60
+			;;
+		esac
+		;;
+	default_boot=*)
+		DEFAULTBOOT="${x#default_boot=}"
+		;;
+	boot_device=*)
+		BOOTDEV="${x#boot_device=}"
+		;;
+	boot=*)
+		BOOT=${x#boot=}
+		;;
+	ubi.mtd=*)
+		UBIMTD=${x#ubi.mtd=}
+		;;
+	quiet)
+		quiet=y
+		;;
+	ro)
+		readonly=y
+		;;
+	rw)
+		readonly=n
+		;;
+	blacklist=*)
+		blacklist=${x#blacklist=}
+		;;
+	hwaddr=*)
+		BOOTIF=${x#BOOTIF=}
+		;;
+	recovery)
+		recovery=y
+		;;
+	esac
+done
+
+if [ -n "${noresume}" ]; then
+	export noresume
+	unset resume
+else
+	resume=${RESUME:-}
+fi
+
+maybe_break top
+
+# export BOOT variable value for compcache,
+# so we know if we run from casper
+export BOOT
+
+# Don't do log messages here to avoid confusing graphical boots
+run_scripts /scripts/init-top
+
+maybe_break modules
+load_modules
+[ -n "${netconsole}" ] && modprobe netconsole netconsole="${netconsole}"
+maybe_break premount
+run_scripts /scripts/init-premount
+
+
+# **************************
+# BOOT SELECT
+# **************************
+
+_desc=""
+#-----------------------------------------------
+get_descr() {
+    _descx=`cat /mnt/$1 | grep \#DESCRIPTION`
+    if [ ! "${_desc}" = "" ]; then
+	_desc=$(echo ${_descx} | sed -r 's/^.{13}//')
+	if [ "${_desc}" = "" ]; then
+	    _desc="${2}"
+	fi
+    else
+	_desc="${2}"
+    fi
+}
+#-----------------------------------------------
+
+#---------------------------------------------------
+do_boot() {
+    if [ -f /mnt/${1} ]; then
+      get_descr ${1} ${2}
+      printf "\n\n"
+      printf "\033[36m    Booting to ${_desc} ...\033[37m\n\n"
+      cp /mnt/${1} /mnt/boot.ini
+      sleep 1
+      umount /mnt
+      sleep 1
+      reboot
+    fi
+}
+#---------------------------------------------------
+
+#---------------------------------------
+do_boot_any() {
+    do_boot ${1} ${2}
+    do_boot "boot.ini.android" "Android"
+    do_boot "boot.ini.linux" "Linux"
+    do_boot "boot.ini.oelec" "OpenELEC"
+    do_boot "boot.ini.linux1" "Linux1"
+    do_boot "boot.ini.linux1" "Linux2"
+    do_boot "boot.ini.linux1" "Linux3"
+    do_boot "boot.ini.linux1" "Linux4"
+}
+#---------------------------------------
+
+
+#==================================================================================
+
+mkdir /mnt
+clear
+printf "\n"
+printf "\n"
+if [ "${BOOTDEV}" = "emuserdata" ]; then
+    _bootdev=" - emmc card"
+elif [ "${BOOTDEV}" = "sduserdata" ]; then
+    _bootdev=" - sd card  "
+else
+    _bootdev="            "
+fi
+
+while [ ! -e /dev/disk/by-label/$BOOTDEV ]; do
+  printf "    Waiting for boot device...\r"
+  sleep 1
+done
+mount -t vfat /dev/disk/by-label/$BOOTDEV /mnt
+
+clear
+echo "1 1 1 1" > /proc/sys/kernel/printk
+printf "\n"
+printf "\n"
+printf "\033[36m    ************************************************\n"
+printf "\033[36m    * \033[1mODROID XU3/XU4 BOOT MENU${_bootdev}\033[22m\n"
+printf "\033[36m    ************************************************\n"
+printf "\033[36m    *\n"
+if [ -f /mnt/boot.ini.android ]; then
+  get_descr "boot.ini.android" "Android"
+  printf "\033[36m    * \033[32m\033[1m1\033[22m  boot to ${_desc}\033[36m\n"
+fi
+if [ -f /mnt/boot.ini.linux ]; then
+  get_descr "boot.ini.linux" "Linux"
+  printf "\033[36m    * \033[33m\033[1m2\033[22m  boot to ${_desc}\033[36m\n"
+fi
+if [ -f /mnt/boot.ini.oelec ]; then
+  get_descr "boot.ini.oelec" "OpenELEC"
+  printf "\033[36m    * \033[37m\033[1m3\033[22m  boot to ${_desc}\033[36m\n"
+fi
+if [ -f /mnt/boot.ini.linux1 ]; then
+  get_descr "boot.ini.linux1" "Linux1"
+  printf "\033[36m    * \033[33m\033[1m4\033[22m  boot to ${_desc}\033[36m\n"
+fi
+if [ -f /mnt/boot.ini.linux2 ]; then
+  get_descr "boot.ini.linux2" "Linux2"
+  printf "\033[36m    * \033[33m\033[1m5\033[22m  boot to ${_desc}\033[36m\n"
+fi
+if [ -f /mnt/boot.ini.linux3 ]; then
+  get_descr "boot.ini.linux3" "Linux3"
+  printf "\033[36m    * \033[33m\033[1m6\033[22m  boot to ${_desc}\033[36m\n"
+fi
+if [ -f /mnt/boot.ini.linux4 ]; then
+  get_descr "boot.ini.linux4" "Linux4"
+  printf "\033[36m    * \033[33m\033[1m7\033[22m  boot to ${_desc}\033[36m\n"
+fi
+
+printf "\033[36m    *\n"
+printf "\033[36m    ************************************************\n"
+printf "\n"
+printf "\n"
+
+_defboot="Linux"
+case $DEFAULTBOOT in
+    android*)
+	_defboot="Android"
+	;;
+    oelec*)
+	_defboot="OpenELEC"
+	;;
+    *)
+	_defboot="Linux"
+	;;
+esac
+
+if [ ! $BOOTDELAY -gt 4 ]; then
+    BOOTDELAY=5
+fi
+
+
+_boot_delay=$BOOTDELAY
+while [ $_boot_delay -gt 0 ]; do
+    printf "\033[37m    Select an option or boot to ${_defboot} in\033[31m\033[1m ${_boot_delay} \033[22m\033[37mseconds   "
+    if read -n 1 -t 1 -s A; then
+	_boot_delay=$BOOTDELAY
+	if [ "${A}" = "1" ]; then
+	  do_boot "boot.ini.android" "Android"
+	fi  
+	if [ "${A}" = "2" ]; then
+	  do_boot "boot.ini.linux" "Linux"
+	fi  
+	if [ "${A}" = "3" ]; then
+	  do_boot "boot.ini.oelec" "OpenELEC"
+	fi  
+	if [ "${A}" = "4" ]; then
+	  do_boot "boot.ini.linux1" "Linux1"
+	fi  
+	if [ "${A}" = "5" ]; then
+	  do_boot "boot.ini.linux1" "Linux2"
+	fi  
+	if [ "${A}" = "6" ]; then
+	  do_boot "boot.ini.linux1" "Linux3"
+	fi  
+	if [ "${A}" = "7" ]; then
+	  do_boot "boot.ini.linux1" "Linux4"
+	fi  
+    else
+        let _boot_delay=_boot_delay-1
+    fi
+    printf "\r"
+done
+
+printf "\n\n"
+case $DEFAULTBOOT in
+    android*)
+	do_boot_any "boot.ini.android" "Android"
+	;;
+    oelec*)
+	do_boot_any "boot.ini.oelec" "OpenELEC"
+	;;
+    linux*)
+	do_boot_any "boot.ini.linux" "Linux"
+	;;
+    linux*)
+	do_boot_any "boot.ini.linux" "Linux"
+	;;
+    linux1*)
+	do_boot_any "boot.ini.linux1" "Linux1"
+	;;
+    linux2*)
+	do_boot_any "boot.ini.linux2" "Linux2"
+	;;
+    linux3*)
+	do_boot_any "boot.ini.linux3" "Linux3"
+	;;
+    linux4*)
+	do_boot_any "boot.ini.linux4" "Linux4"
+	;;
+    *)
+	printf "boot.ini not found!\n"
+	;;
+esac
+
+printf "\033[36m    REBOOT ...\n"
+sleep 1
+umount /mnt
+sleep 1
+
+reboot
