@@ -26,7 +26,7 @@ Universal installer which can install **android**, **linux** or both (**dualboot
 - 200MB sdcard/image will be prepared, if the 2nd parameter is **full** 2 GB image or full size sdcard will be prepared
 - if the image file is created, you can write the image to SDCard using dd command.
 - you can **expand** the FAT partition on SDCard to fit the SDCard size if you want, be careful **not to change** the partition **start sector**
-- copy your installation sources (Android **update image** **update.zip**, Linux **.img** file) to the first partition of your USB drive
+- copy your installation sources (Android update image **update.zip**, Linux **.img** file) to the first partition of your USB drive
 - **rename** the Linux installation image to **linux.img** !
 - if you want to install **only Android**, you can copy **update.zip** to the SDCard, you don't need to use USB drive
 - set Odroid **boot switch** to boot from SDCard
