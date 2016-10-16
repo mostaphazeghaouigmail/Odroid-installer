@@ -22,6 +22,7 @@ Universal installer which can install **android**, **linux** or both (**dualboot
 **Usage**
 
 - build the installer sdcard/image running `sudo ./prepare_selfinst <destination_card>|<destination_image_name> [full]`
+- or you can use **prepared images**, unzip install_boot[_2GB].img.zip and run `sudo dd if=install_boot[_2GB].img of=/dev/sdX bs=1MB oflag=direct`
 - 200MB sdcard/image will be prepared, if the 2nd parameter is **full** 2 GB image or full size sdcard will be prepared
 - if the image file is created, you can write the image to SDCard using dd command.
 - you can **expand** the FAT partition on SDCard to fit the SDCard size if you want, be careful **not to change** the partition **start sector**
