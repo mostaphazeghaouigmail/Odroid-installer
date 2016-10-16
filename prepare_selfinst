@@ -75,6 +75,7 @@ if [ -b $sdcard ]; then
 	    echo "${sdcard} NOT FOUND !, Exiting."
 	    exit 1
     fi
+	_image_size=2048
     _isimage="no"
 else
     _isimage="yes"
@@ -135,12 +136,12 @@ if [ ! "${_isimage}" = "yes" ]; then
 
     echo ""
     echo "Creating selfinst partition on $sdcard..."
-	if [ "${2}" = "full" ]; then
-		echo -e "n\np\n1\n$part_start\n\nt\nc\nw" | fdisk ${sdcard} > /dev/null 2>&1
-	else
-		part_end=$(expr $_image_size \* 2048 + $part_start)
-		echo -e "n\np\n1\n$part_start\n$part_end\nt\nc\nw" | fdisk ${sdcard} > /dev/null 2>&1
-	fi
+	#if [ "${2}" = "full" ]; then
+	echo -e "n\np\n1\n$part_start\n\nt\nc\nw" | fdisk ${sdcard} > /dev/null 2>&1
+	#else
+	#	part_end=$(expr $_image_size \* 2048 + $part_start)
+	#	echo -e "n\np\n1\n$part_start\n$part_end\nt\nc\nw" | fdisk ${sdcard} > /dev/null 2>&1
+	#fi
     sleep 1
     partprobe -s ${sdcard} > /dev/null 2>&1
     if [ $? -ne 0 ]; then
