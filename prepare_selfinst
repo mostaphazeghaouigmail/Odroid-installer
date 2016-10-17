@@ -154,7 +154,7 @@ if [ ! "${_isimage}" = "yes" ]; then
     echo "Formating partition ..."
     dd if=/dev/zero of=${sdcard}1 bs=1M count=1 oflag=direct > /dev/null 2>&1
     sync
-    mkfs -t vfat -F 32 -n SELFINST ${sdcard}1 #> /dev/null 2>&1
+    mkfs -t vfat -F 32 -n SELFINST ${sdcard}1 > /dev/null 2>&1
     if [ $? -ne 0 ]; then
 	image_error_exit "  ERROR formating boot partition."
     fi

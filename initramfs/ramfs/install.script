@@ -1105,16 +1105,37 @@ prepare_android_multi() {
     # Add init.d script to restore boot prompt on next boot
     mkdir /mnt2/etc > /dev/null 2>&1
     mkdir /mnt2/etc/init.d > /dev/null 2>&1
-    #echo "#!/system/bin/sh" > /mnt2/etc/init.d/setboot
-    #echo "while [ ! -f /storage/sdcard0/boot.ini.sel ]; do" >> /mnt2/etc/init.d/setboot
-    #echo "  /system/bin/sleep 1" >> /mnt2/etc/init.d/setboot
-    #echo "done" >> /mnt2/etc/init.d/setboot
-    #echo "  /system/bin/cp /storage/sdcard0/boot.ini.sel /storage/sdcard0/boot.ini" >> /mnt2/etc/init.d/setboot
-
-    echo "/system/bin/mkdir /storage/boot" >> /mnt2/etc/init.d/setboot
-	echo "/system/bin/mount /dev/block/mmcblk0p1 /storage/boot" >> /mnt2/etc/init.d/setboot
-	echo "/system/bin/cp /storage/boot/boot.ini.sel /storage/boot/boot.ini" >> /mnt2/etc/init.d/setboot
-	echo "/system/bin/umount /storage/boot" >> /mnt2/etc/init.d/setboot
+    echo "#!/system/bin/sh" > /mnt2/etc/init.d/setboot
+    echo "while [ 1 ]; do" >> /mnt2/etc/init.d/setboot
+    echo "  if [ -f /storage/sdcard0/boot.ini.sel ]; then" >> /mnt2/etc/init.d/setboot
+    echo "    /system/bin/cp /storage/sdcard0/boot.ini.sel /storage/sdcard0/boot.ini" >> /mnt2/etc/init.d/setboot
+    echo "    break" >> /mnt2/etc/init.d/setboot
+    echo "  fi" >> /mnt2/etc/init.d/setboot
+    echo "  if [ -f /storage/sdcard1/boot.ini.sel ]; then" >> /mnt2/etc/init.d/setboot
+    echo "    /system/bin/cp /storage/sdcard1/boot.ini.sel /storage/sdcard1/boot.ini" >> /mnt2/etc/init.d/setboot
+    echo "    break" >> /mnt2/etc/init.d/setboot
+    echo "  fi" >> /mnt2/etc/init.d/setboot
+    echo "  if [ -f /mnt/media_rw/sdcard0/boot.ini.sel ]; then" >> /mnt2/etc/init.d/setboot
+    echo "    /system/bin/cp /mnt/media_rw/sdcard0/boot.ini.sel /mnt/media_rw/sdcard0/boot.ini" >> /mnt2/etc/init.d/setboot
+    echo "    break" >> /mnt2/etc/init.d/setboot
+    echo "  fi" >> /mnt2/etc/init.d/setboot
+    echo "  if [ -f /mnt/media_rw/sdcard1/boot.ini.sel ]; then" >> /mnt2/etc/init.d/setboot
+    echo "    /system/bin/cp /mnt/media_rw/sdcard1/boot.ini.sel /mnt/media_rw/sdcard1/boot.ini" >> /mnt2/etc/init.d/setboot
+    echo "    break" >> /mnt2/etc/init.d/setboot
+    echo "  fi" >> /mnt2/etc/init.d/setboot
+    echo "  part1=\`blkid | grep ${label_pref}userdata | cut -d':' -f1\`" >> /mnt2/etc/init.d/setboot
+    echo "  if [ ! '\${part1}' == '' ]; then" >> /mnt2/etc/init.d/setboot
+    echo "    /system/bin/mkdir /storage/bootpart" >> /mnt2/etc/init.d/setboot
+    echo "    /system/bin/mount \${part1} /storage/bootpart" >> /mnt2/etc/init.d/setboot
+    echo "    if [ -f /storage/bootpart/boot.ini.sel ]; then" >> /mnt2/etc/init.d/setboot
+    echo "      /system/bin/cp /storage/bootpart/boot.ini.sel /storage/bootpart/boot.ini" >> /mnt2/etc/init.d/setboot
+    echo "      /system/bin/umount /storage/bootpart" >> /mnt2/etc/init.d/setboot
+    echo "      break" >> /mnt2/etc/init.d/setboot
+    echo "    fi" >> /mnt2/etc/init.d/setboot
+    echo "    /system/bin/umount /storage/bootpart" >> /mnt2/etc/init.d/setboot
+    echo "  fi" >> /mnt2/etc/init.d/setboot
+    echo "  /system/bin/sleep 5" >> /mnt2/etc/init.d/setboot
+    echo "done" >> /mnt2/etc/init.d/setboot
 	
 	chmod 0755 /mnt2/etc/init.d/setboot
 
