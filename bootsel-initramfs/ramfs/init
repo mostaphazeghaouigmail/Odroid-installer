@@ -73,6 +73,9 @@ done
 BOOTDELAY=60
 DEFAULTBOOT="linux"
 BOOTDEV="sduserdata"
+MENUNAME1="Android"
+MENUNAME2="Linux"
+MENUNAME3="OpenELEC"
 
 # Parse command line options
 for x in $(cat /proc/cmdline); do
@@ -90,6 +93,15 @@ for x in $(cat /proc/cmdline); do
 		;;
 	boot_device=*)
 		BOOTDEV="${x#boot_device=}"
+		;;
+	menu_name1=*)
+		MENUNAME1="${x#menu_name1=}"
+		;;
+	menu_name2=*)
+		MENUNAME2="${x#menu_name2=}"
+		;;
+	menu_name3=*)
+		MENUNAME3="${x#menu_name3=}"
 		;;
 	boot=*)
 		BOOT=${x#boot=}
@@ -166,6 +178,7 @@ do_boot() {
       get_descr ${1} ${2}
       printf "\n\n"
       printf "\033[36m    Booting to ${_desc} ...\033[37m\n\n"
+      cp /mnt/boot.ini /mnt/boot.ini.last
       cp /mnt/${1} /mnt/boot.ini
       sleep 1
       umount /mnt
@@ -178,9 +191,9 @@ do_boot() {
 #---------------------------------------
 do_boot_any() {
     do_boot ${1} ${2}
-    do_boot "boot.ini.android" "Android"
-    do_boot "boot.ini.linux" "Linux"
-    do_boot "boot.ini.oelec" "OpenELEC"
+    do_boot "boot.ini.android" ${MENUNAME1}
+    do_boot "boot.ini.linux" ${MENUNAME2}
+    do_boot "boot.ini.oelec" ${MENUNAME3}
     do_boot "boot.ini.linux1" "Linux1"
     do_boot "boot.ini.linux1" "Linux2"
     do_boot "boot.ini.linux1" "Linux3"
@@ -218,15 +231,15 @@ printf "\033[36m    * \033[1mODROID XU3/XU4 BOOT MENU${_bootdev}\033[22m\n"
 printf "\033[36m    ************************************************\n"
 printf "\033[36m    *\n"
 if [ -f /mnt/boot.ini.android ]; then
-  get_descr "boot.ini.android" "Android"
+  get_descr "boot.ini.android" ${MENUNAME1}
   printf "\033[36m    * \033[32m\033[1m1\033[22m  boot to ${_desc}\033[36m\n"
 fi
 if [ -f /mnt/boot.ini.linux ]; then
-  get_descr "boot.ini.linux" "Linux"
+  get_descr "boot.ini.linux" ${MENUNAME2}
   printf "\033[36m    * \033[33m\033[1m2\033[22m  boot to ${_desc}\033[36m\n"
 fi
 if [ -f /mnt/boot.ini.oelec ]; then
-  get_descr "boot.ini.oelec" "OpenELEC"
+  get_descr "boot.ini.oelec" ${MENUNAME3}
   printf "\033[36m    * \033[37m\033[1m3\033[22m  boot to ${_desc}\033[36m\n"
 fi
 if [ -f /mnt/boot.ini.linux1 ]; then
@@ -254,13 +267,13 @@ printf "\n"
 _defboot="Linux"
 case $DEFAULTBOOT in
     android*)
-	_defboot="Android"
+	_defboot=${MENUNAME1}
 	;;
     oelec*)
-	_defboot="OpenELEC"
+	_defboot=${MENUNAME3}
 	;;
     *)
-	_defboot="Linux"
+	_defboot=${MENUNAME2}
 	;;
 esac
 
@@ -275,13 +288,13 @@ while [ $_boot_delay -gt 0 ]; do
     if read -n 1 -t 1 -s A; then
 	_boot_delay=$BOOTDELAY
 	if [ "${A}" = "1" ]; then
-	  do_boot "boot.ini.android" "Android"
+	  do_boot "boot.ini.android" ${MENUNAME1}
 	fi  
 	if [ "${A}" = "2" ]; then
-	  do_boot "boot.ini.linux" "Linux"
+	  do_boot "boot.ini.linux" ${MENUNAME2}
 	fi  
 	if [ "${A}" = "3" ]; then
-	  do_boot "boot.ini.oelec" "OpenELEC"
+	  do_boot "boot.ini.oelec" ${MENUNAME3}
 	fi  
 	if [ "${A}" = "4" ]; then
 	  do_boot "boot.ini.linux1" "Linux1"
@@ -304,13 +317,10 @@ done
 printf "\n\n"
 case $DEFAULTBOOT in
     android*)
-	do_boot_any "boot.ini.android" "Android"
+	do_boot_any "boot.ini.android" ${MENUNAME1}
 	;;
     oelec*)
-	do_boot_any "boot.ini.oelec" "OpenELEC"
-	;;
-    linux*)
-	do_boot_any "boot.ini.linux" "Linux"
+	do_boot_any "boot.ini.oelec" ${MENUNAME3}
 	;;
     linux*)
 	do_boot_any "boot.ini.linux" "Linux"

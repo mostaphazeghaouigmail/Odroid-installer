@@ -1,21 +1,28 @@
 ODROIDXU-UBOOT-CONFIG
 
-# ==============================================================
-# =                 Boot select parameters                     =
-# ==============================================================
-# The LABEL of the boot device, ("sduserdata" or "emuserdata") =
-# ------------------------------------------------------------ =
+# ===============================================================
+# =                 Boot select parameters                      =
+# ===============================================================
+# The LABEL of the boot device, ("sduserdata" or "emuserdata")  =
+# ------------------------------------------------------------- =
 setenv BOOTDEVICE "XXuserdata"
-# ==============================================================
-# Time (sec) to automatic boot if no key is pressed (min 4)    =
-# ------------------------------------------------------------ =
+# ===============================================================
+# Time (sec) to automatic boot if no key is pressed (min 5)     =
+# ------------------------------------------------------------- =
 setenv BOOT_DELAY "10"
-# ==============================================================
-# OS to boot if no key is pressed ("linux", "android", "oelec" =
-# ------------------------------------------------------------ =
+# ===============================================================
+# OS to boot if no key is pressed ("linux", "android", "oelec") =
+# ------------------------------------------------------------- =
 setenv DEFAULT_OS "linux"
 #
-# ==============================================================
+# ===============================================================
+# Menu names                                                    =
+# ------------------------------------------------------------- =
+setenv MENU_NAME1 "Android"
+setenv MENU_NAME2 "Linux"
+setenv MENU_NAME3 "OpenELEC"
+#
+# ===============================================================
 
 
 # U-Boot Parameters
@@ -28,7 +35,7 @@ setenv macaddr "00:1e:06:61:7a:39"
 #-------------------------------------------------------------------------------------------------------------------
 # Basic Ubuntu Setup. Don't touch unless you know what you are doing.
 #-------------------------------------------------------------------------------------------------------------------
-setenv bootrootfs "console=tty0 quiet boot_delay=${BOOT_DELAY} default_boot=${DEFAULT_OS} boot_device=${BOOTDEVICE}"
+setenv bootrootfs "console=tty0 quiet boot_delay=${BOOT_DELAY} default_boot=${DEFAULT_OS} boot_device=${BOOTDEVICE} menu_name1=${MENU_NAME1} menu_name2=${MENU_NAME2} menu_name3=${MENU_NAME3}"
 
 # boot commands
 setenv bootcmd "fatload mmc 0:1 0x40008000 zImage.sel; fatload mmc 0:1 0x42000000 uInitrd.sel; fatload mmc 0:1 0x44000000 exynos5422-odroidxu3_sel.dtb; bootz 0x40008000 0x42000000 0x44000000"

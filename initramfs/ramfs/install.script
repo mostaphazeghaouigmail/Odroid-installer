@@ -15,12 +15,12 @@ export source_mount="/mnt"
 export TWO_CARDS="no"
 
 #-----------------------------------------------------------------------------------------------------
-if [ "${INST_LINUX}" = "yes" ] && [ "${INST_ANDROID}" != "yes" ]; then
+if [ "${INST_LINUX}" = "yes" ] && [ "${INST_ANDROID}" != "yes" ] && [ "${INST_OELEC}" != "yes" ]; then
 	ONLY_LINUX="yes"
 	MULTI_BOOT="no"
 	lin_partno="2"
 fi
-if [ "${INST_ANDROID}" = "yes" ] && [ "${INST_LINUX}" != "yes" ]; then
+if [ "${INST_ANDROID}" = "yes" ] && [ "${INST_LINUX}" != "yes" ] && [ "${INST_OELEC}" != "yes" ]; then
 	ONLY_ANDROID="yes"
 	MULTI_BOOT="no"
 	cache_partno="4"
@@ -37,9 +37,9 @@ print_header() {
     printf "\n"
     printf "\n"
     printf "\033[36m\n"
-    printf "    ======================================\n"
-    printf "    = Odroid XU3/XU4 Universal installer =\n"
-    printf "    ======================================\n"
+    printf "    ==========================================\n"
+    printf "    = Odroid XU3/XU4 Universal installer v1.1=\n"
+    printf "    ==========================================\n"
     printf "\033[37m\n"
 }
 #-------------------------------------------------------
@@ -114,6 +114,14 @@ print_settings() {
 			printf "backup"
 		fi
 	fi
+	if [ "${INST_OELEC}" = "yes" ]; then
+		printf " \033[36mOpenElec\033[37m from "
+		if [ ! -d /mnt/backup/oelec ]; then
+			printf "image"
+		else
+			printf "backup"
+		fi
+	fi
 	printf "\033[37m\n"
     printf "                 Install to: \033[36m${DEST_EMMC} Card (${DEST_CARD})\033[37m (${CARD_SIZE}M)\n"
     printf "          Installation type: \033[36m"
@@ -122,7 +130,7 @@ print_settings() {
 	elif [ "${ONLY_ANDROID}" = "yes" ]; then
 		printf "Android"
 	else
-		printf "Dual Boot"
+		printf "Multi Boot"
 	fi
 	printf "\033[37m\n\n"
     printf "                  Card size: \033[36m${CARD_SIZE}M\033[37m\n"
@@ -461,7 +469,7 @@ prepare_card() {
 		#       |              userdata                     |               system                 |               data                     |          cache          |
 		echo -e "n\np\n1\n$part_start\n$userpart_end\nt\nc\nn\np\n2\n$syspart_start\n$syspart_end\nn\np\n3\n$datapart_start\n$datapart_end\nn\np\n$cachepart_start\n\nw" | fdisk ${DEST_CARD} > /dev/null 2>&1
 	else
-		printf "for Dual Boot "
+		printf "for Multi Boot "
 		if [ $OELEC_SIZE -eq 0 ]; then
 			lin_partno="6"
 			# == DUAL BOOT ANDROID & LINUX ===
@@ -1129,7 +1137,7 @@ prepare_android_multi() {
     echo "    /system/bin/mount \${part1} /storage/bootpart" >> /mnt2/etc/init.d/setboot
     echo "    if [ -f /storage/bootpart/boot.ini.sel ]; then" >> /mnt2/etc/init.d/setboot
     echo "      /system/bin/cp /storage/bootpart/boot.ini.sel /storage/bootpart/boot.ini" >> /mnt2/etc/init.d/setboot
-    echo "      /system/bin/umount /storage/bootpart" >> /mnt2/etc/init.d/setboot
+    echo "      #/system/bin/umount /storage/bootpart" >> /mnt2/etc/init.d/setboot
     echo "      break" >> /mnt2/etc/init.d/setboot
     echo "    fi" >> /mnt2/etc/init.d/setboot
     echo "    /system/bin/umount /storage/bootpart" >> /mnt2/etc/init.d/setboot
@@ -1332,7 +1340,7 @@ install_android() {
 
 	if [ "${MULTI_BOOT}" = "yes" ]; then
 		# Prepare for multiboot
-		printf "    Preparing for dual boot ... "
+		printf "    Preparing for multi boot ... "
 
 		/bin/mountx -t vfat ${DEST_CARD}p1 /mnt2 > /dev/null 2>&1
 		if [ $? -ne 0 ]; then
@@ -1341,6 +1349,7 @@ install_android() {
 		fi
 		sleep 1
 
+		cp /mnt2/boot.ini /mnt2/boot.ini.android.orig > /dev/null 2>&1
 		cp /multi/boot.ini.android /mnt2 > /dev/null 2>&1
 		[ ! -f /mnt2/boot.ini.android ] && print "ini file? "
 
@@ -1679,7 +1688,7 @@ install_oelec() {
 	
 	cp ${source_mount}/oelec.tar /run/oelec
 	cd /run/oelec
-	tar -xf oelec.tar
+	tar -xf oelec.tar > /dev/null 2>&1
 	if [ $? -ne 0 ]; then
 		echo "ERROR extracting archive."
 		cd /
@@ -1692,7 +1701,7 @@ install_oelec() {
 		cd /
 		return 1
 	fi
-	if [ ! -f ${_name}/target/KERNEL ] || [ ! -f ${_name}/target/KERNEL ]; then
+	if [ ! -f ${_name}/target/KERNEL ] || [ ! -f ${_name}/target/SYSTEM ]; then
 		echo "OpenELEC files not found"
 		cd /
 		return 1
@@ -1715,7 +1724,7 @@ install_oelec() {
 
     cd /
 	cp /multi/boot.ini.oelec /mnt2
-	cat /mnt2/boot.ini.oelec | sed s/"boot=LABEL=userdata disk=LABEL=oelec"/"boot=LABEL=${label_pref}userdata disk=LABEL=${label_pref}oelec"/g > _bsel_
+	cat /mnt2/boot.ini.oelec | sed s/"boot=LABEL=userdata disk=LABEL=oelec"/"boot=LABEL=${label_pref}userdata disk=LABEL=${label_pref}aux"/g > _bsel_
 	cp _bsel_ /mnt2/boot.ini.oelec
 	rm _bsel_
 	sync
@@ -1948,13 +1957,13 @@ else
 		fi
 		
 		if [ "${MULTI_BOOT}" = "yes" ]; then
-			printf "\n    \033[33mInstalling \033[1mDual Boot support\033[22m\033[37m\n"
+			printf "\n    \033[33mInstalling \033[1mMulti Boot support\033[22m\033[37m\n"
 			install_multi_sel
 			if [ $? -ne 0 ]; then
-				printf "    \033[35mERROR INSTALLING Dual Boot!\033[37m\n"
+				printf "    \033[35mERROR INSTALLING Multi Boot!\033[37m\n"
 				_inst_err="yes"
 			else
-				printf "    \033[36m${DEST_EMMC} CARD PREPARED FOR DUAL BOOT!\033[37m\n"
+				printf "    \033[36m${DEST_EMMC} CARD PREPARED FOR MULTI BOOT!\033[37m\n"
 			fi
 			umount /mnt2 > /dev/null 2>&1
 		fi

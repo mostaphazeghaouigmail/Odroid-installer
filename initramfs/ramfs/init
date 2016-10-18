@@ -270,12 +270,11 @@ check_source() {
         LINUX_SIZE=8
     fi
         
-    #if [ -f /mnt/oelec.tar ]; then
-    #    INST_OELEC="yes"
-    #else
-    #    OELEC_MINSIZE=4
-    #    OELEC_SIZE=4
-    #fi
+    if [ -f /mnt/oelec.tar ]; then
+        INST_OELEC="yes"
+        OELEC_MINSIZE=512
+        OELEC_SIZE=512
+    fi
         
 	if [ "${INST_ANDROID}" != "yes" ] && [ "${INST_LINUX}" != "yes" ] && [ "${SOURCE_CARD}" != "/dev/sda1" ]; then
 		return 1
